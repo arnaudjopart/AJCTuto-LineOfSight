@@ -58,15 +58,17 @@ public class MainLineOfSight : MonoBehaviour
         
         var uvs = new Vector2[nbOfVertices];
         
-        for (var i = 0; i < triangles.Length; i += 3)
+        for (var i = 0; i < triangles.Length-1; i +=3)
         {
-            uvs[i] = new Vector2(0,0);
+            uvs[i] = new Vector2(0,1);
+            uvs[i+1] = new Vector2(0,0); 
+            uvs[i+2] = new Vector2(0,0); 
         }
         
 
-        uvs[0] = new Vector3(0,1);
-        uvs[1] = new Vector3(0,1);
-        uvs[2] = new Vector3 (0,1);
+        //uvs[0] = new Vector3(0,1);
+        /*uvs[1] = new Vector3(0,1); 
+        uvs[2] = new Vector3 (0,1);*/
 
         mesh.vertices = vertices;
         mesh.triangles = triangles;

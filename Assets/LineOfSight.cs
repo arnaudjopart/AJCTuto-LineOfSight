@@ -13,34 +13,38 @@ public class LineOfSight : MonoBehaviour
 {
     public MainLineOfSight m_lineOfSight;
     
-    public MeshFilter m_meshFilter;
-
     [SerializeField]
     private LayerMask m_layerMask;
 
-    private List<Vector3> m_raycastHiPositions = new List<Vector3>();
-    private List<Vector3> m_endOfLineOfSightPositions = new List<Vector3>();
+    //private List<Vector3> m_raycastHiPositions = new List<Vector3>();
+    //private List<Vector3> m_endOfLineOfSightPositions = new List<Vector3>();
 
     //private NativeArray<RaycastHit> m_results;
     private EntityManager m_entityManager;
 
-    private bool m_isCurrentlyDrawingMesh= true;
+    //private bool m_isCurrentlyDrawingMesh= true;
+
+    private RaycastData m_previousRaycastData;
+
+    private List<LineOfSightMeshData> m_meshDataCollection;
+
+    private LineOfSightMeshData m_currentMeshData;
+    [SerializeField]
+    private MeshFilter[] m_meshFilters;
     //private NativeArray<RaycastHit> m_result;
 
     // Start is called before the first frame update
     void Start()
     {
         m_entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-        
-        
+        m_previousRaycastData = new RaycastData();
+        m_meshDataCollection = new List<LineOfSightMeshData>();
     }
 
     private void RayCast()
     {
-        
-        m_endOfLineOfSightPositions.Clear();
-        m_raycastHiPositions.Clear();
-        
+        m_meshDataCollection.Clear();
+
         var step = m_lineOfSight.m_amplitudeOfSightInDegrees / (m_lineOfSight.m_numberOfRaycast-1);
         
         double startTimer = Time.realtimeSinceStartup;
@@ -48,31 +52,58 @@ public class LineOfSight : MonoBehaviour
         
         for (var i = 0; i < m_lineOfSight.m_numberOfRaycast; i++)
         {
-            var rayCastDirection = Quaternion.Euler(0, (-m_lineOfSight.m_amplitudeOfSightInDegrees*.5f)+(i*step), 0)*transform.forward;
+            var angle = (-m_lineOfSight.m_amplitudeOfSightInDegrees*.5f)+(i * step);
+            var rayCastDirection = Quaternion.Euler(0, angle, 0)*transform.forward;
             var ray = new UnityEngine.Ray(transform.position,rayCastDirection);
-            
+
+            var currentRayCastResult = new RaycastData()
+            {
+                m_angle = angle,
+                m_direction =  rayCastDirection
+
+            };
             if (!Physics.Raycast(ray, out var hit, m_lineOfSight.m_maxDistance, m_layerMask))
             {
-                if (m_isCurrentlyDrawingMesh)
+                currentRayCastResult.m_hit = false;
+                currentRayCastResult.m_start = transform.position;
+                currentRayCastResult.m_end = ray.GetPoint(m_lineOfSight.m_maxDistance);
+                
+                if (m_previousRaycastData.m_hit)
                 {
                     CloseMeshInfo();
-                    m_isCurrentlyDrawingMesh = false;
-                    continue;
+                    //m_isCurrentlyDrawingMesh = false;
+                    
                 }
-            }
 
-            if (m_isCurrentlyDrawingMesh)
-            {
-                m_raycastHiPositions.Add(hit.point);
-                m_endOfLineOfSightPositions.Add(ray.GetPoint(m_lineOfSight.m_maxDistance));
-                drawMesh = true;
-                AddNewMeshPoints(hit.point,ray.GetPoint(m_lineOfSight.m_maxDistance));
+                m_previousRaycastData = currentRayCastResult;
+                
             }
             else
             {
-                m_isCurrentlyDrawingMesh = true;
-                //CreateNewMeshInfo();
+                currentRayCastResult.m_hit = true;
+                currentRayCastResult.m_start = hit.point;
+                currentRayCastResult.m_end = ray.GetPoint(m_lineOfSight.m_maxDistance);
+            
+                if (m_previousRaycastData.m_hit)
+                {
+                    AddRaycastResult(currentRayCastResult);
+                }
+                else
+                {
+                    drawMesh = true;
+                    //m_isCurrentlyDrawingMesh = true;
+                    CreateNewMeshInfo();
+                    AddRaycastResult(currentRayCastResult);
+                    if (i > 0)
+                    {
+                        FindEdge();
+                    }
+                
+                }
+                m_previousRaycastData = currentRayCastResult; 
             }
+
+            
             
         }
 
@@ -81,14 +112,13 @@ public class LineOfSight : MonoBehaviour
             DrawMesh();
         }
         
-        for (var i = 0; i < m_raycastHiPositions.Count; i++)
+        /*for (var i = 0; i < m_raycastHiPositions.Count; i++)
         {
             var firstRaycastHit = m_raycastHiPositions[i];
-            float distance;
-            distance = Vector3.Distance(m_endOfLineOfSightPositions[i],firstRaycastHit);
+            var distance = Vector3.Distance(m_endOfLineOfSightPositions[i],firstRaycastHit);
             var rayCastDirection = (m_endOfLineOfSightPositions[i] - firstRaycastHit).normalized;
             Debug.DrawRay(firstRaycastHit,rayCastDirection*distance);
-        }
+        }*/
         
         /*
         
@@ -184,44 +214,61 @@ public class LineOfSight : MonoBehaviour
         */
         var endTimer = Time.realtimeSinceStartup;
         var workTime = (endTimer - startTimer)*1000;
-        Debug.Log(workTime+" ms");
+        //Debug.Log(workTime+" ms");
+    }
+
+    private void FindEdge()
+    {
+        
     }
 
     private void CreateNewMeshInfo() 
     {
-        //throw new NotImplementedException();
+        m_currentMeshData = new LineOfSightMeshData();
+        
     }
 
-    private void AddNewMeshPoints(Vector3 _hitPoint, Vector3 _getPoint)
+    private void AddRaycastResult(RaycastData _data)
     {
-        //throw new NotImplementedException();
-        
+       m_currentMeshData.m_datas.Add(_data);
+                
     }
 
     private void CloseMeshInfo()
     {
-        //throw new NotImplementedException();
-        
+        m_meshDataCollection.Add(m_currentMeshData);
     }
 
     private void DrawMesh()
     {
+
+        for (var i =0;i<m_meshDataCollection.Count;i++)
+        {
+            var mesh = DrawMeshFromData(m_meshDataCollection[i]);
+            m_meshFilters[i].mesh = mesh;
+        }
+        
+    }
+
+    private Mesh DrawMeshFromData(LineOfSightMeshData _data)
+    {
         Mesh mesh = new Mesh();
-        var nbOfTriangles = (m_raycastHiPositions.Count - 1)*2;
+        if (_data.m_datas.Count < 2) return null;
+        var nbOfTriangles = (_data.m_datas.Count - 1)*2;
+        //var nbOfTriangles = (m_raycastHiPositions.Count - 1)*2;
         var nbOfVertices = nbOfTriangles * 3;
         var vertices = new Vector3[nbOfVertices];
 
         var relativeRotation = Quaternion.Inverse(Quaternion.LookRotation(transform.forward));
-        for (var i = 0; i < m_raycastHiPositions.Count-2; i ++)
+        for (var i = 0; i < _data.m_datas.Count-1; i ++)
         {
-            vertices[i*6] = relativeRotation*(m_raycastHiPositions[i]-transform.position);
-            vertices[i*6+1] = relativeRotation*(m_endOfLineOfSightPositions[i]-transform.position);
-            vertices[i*6+2] = relativeRotation*(m_raycastHiPositions[i+1]-transform.position);
-            vertices[i*6+3] = relativeRotation*(m_endOfLineOfSightPositions[i]-transform.position);
-            vertices[i*6+4] = relativeRotation*(m_endOfLineOfSightPositions[i+1]-transform.position);
-            vertices[i*6+5] = relativeRotation*(m_raycastHiPositions[i+1]-transform.position);
-            
-            
+            vertices[i*6] = relativeRotation*(_data.m_datas[i].m_start-transform.position);
+            vertices[i*6+1] = relativeRotation*(_data.m_datas[i].m_end-transform.position);
+            vertices[i*6+2] = relativeRotation*(_data.m_datas[i+1].m_start-transform.position);
+            vertices[i*6+3] = relativeRotation*(_data.m_datas[i].m_end-transform.position);
+            vertices[i*6+4] = relativeRotation*(_data.m_datas[i+1].m_end-transform.position);
+            vertices[i*6+5] = relativeRotation*(_data.m_datas[i+1].m_start-transform.position);
+
         }
 
 
@@ -244,7 +291,7 @@ public class LineOfSight : MonoBehaviour
         mesh.uv = uvs;
         
         //mesh.normals = normals;
-        m_meshFilter.mesh = mesh;
+        return mesh;
     }
 
     // Update is called once per frame
@@ -263,4 +310,23 @@ public class LineOfSight : MonoBehaviour
     {
         
     }
+}
+
+public class LineOfSightMeshData
+{
+    public List<RaycastData> m_datas;
+
+    public LineOfSightMeshData()
+    {
+        m_datas = new List<RaycastData>();
+    }
+}
+
+public struct RaycastData
+{
+    public Vector3 m_direction;
+    public Vector3 m_start;
+    public Vector3 m_end;
+    public float m_angle;
+    public bool m_hit;
 }
