@@ -133,9 +133,9 @@ MonoBehaviour:
   m_Active: 1
   settings:
     passTag: Behind
-    Event: 300
+    Event: 500
     filterSettings:
-      RenderQueueType: 0
+      RenderQueueType: 1
       LayerMask:
         serializedVersion: 2
         m_Bits: 1024
@@ -172,9 +172,9 @@ MonoBehaviour:
   m_Active: 1
   settings:
     passTag: Front
-    Event: 300
+    Event: 500
     filterSettings:
-      RenderQueueType: 0
+      RenderQueueType: 1
       LayerMask:
         serializedVersion: 2
         m_Bits: 2048
