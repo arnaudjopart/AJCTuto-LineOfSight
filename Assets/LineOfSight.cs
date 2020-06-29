@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
 using Unity.Physics;
 using Unity.Physics.Systems;
@@ -10,65 +11,89 @@ using RaycastHit = Unity.Physics.RaycastHit;
 
 public class LineOfSight : MonoBehaviour
 {
-    public MeshRenderer m_meshRenderer;
-    public MeshFilter m_meshFilter;
+    public MainLineOfSight m_lineOfSight;
     
-    public float m_amplitudeOfSightInDegrees = 60;
+    public MeshFilter m_meshFilter;
 
-    public int m_numberOfRaycast = 9;
-    [SerializeField]
-    private float m_maxDistance;
     [SerializeField]
     private LayerMask m_layerMask;
 
-    private Vector3[] m_raycastHiPositions;
+    private List<Vector3> m_raycastHiPositions = new List<Vector3>();
+    private List<Vector3> m_endOfLineOfSightPositions = new List<Vector3>();
 
     //private NativeArray<RaycastHit> m_results;
     private EntityManager m_entityManager;
+
+    private bool m_isCurrentlyDrawingMesh= true;
     //private NativeArray<RaycastHit> m_result;
 
     // Start is called before the first frame update
     void Start()
     {
         m_entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-        m_raycastHiPositions = new Vector3[m_numberOfRaycast]; 
+        
         
     }
 
-    private void DrawMesh()
+    private void RayCast()
     {
-        var collisionWorld = World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<BuildPhysicsWorld>()
-        .PhysicsWorld.CollisionWorld;
         
-        var step = m_amplitudeOfSightInDegrees / (m_numberOfRaycast-1);
-        m_raycastHiPositions = new Vector3[m_numberOfRaycast];
+        m_endOfLineOfSightPositions.Clear();
+        m_raycastHiPositions.Clear();
+        
+        var step = m_lineOfSight.m_amplitudeOfSightInDegrees / (m_lineOfSight.m_numberOfRaycast-1);
+        
         double startTimer = Time.realtimeSinceStartup;
+        var drawMesh = false;
         
-        for (var i = 0; i < m_numberOfRaycast; i++)
+        for (var i = 0; i < m_lineOfSight.m_numberOfRaycast; i++)
         {
-            var rayCastDirection = Quaternion.Euler(0, (-m_amplitudeOfSightInDegrees*.5f)+(i*step), 0)*transform.forward;
+            var rayCastDirection = Quaternion.Euler(0, (-m_lineOfSight.m_amplitudeOfSightInDegrees*.5f)+(i*step), 0)*transform.forward;
             var ray = new UnityEngine.Ray(transform.position,rayCastDirection);
-            if (Physics.Raycast(ray, out var hit, m_maxDistance, m_layerMask))
+            
+            if (!Physics.Raycast(ray, out var hit, m_lineOfSight.m_maxDistance, m_layerMask))
             {
-                m_raycastHiPositions[i] = hit.point;
+                if (m_isCurrentlyDrawingMesh)
+                {
+                    CloseMeshInfo();
+                    m_isCurrentlyDrawingMesh = false;
+                    continue;
+                }
+            }
+
+            if (m_isCurrentlyDrawingMesh)
+            {
+                m_raycastHiPositions.Add(hit.point);
+                m_endOfLineOfSightPositions.Add(ray.GetPoint(m_lineOfSight.m_maxDistance));
+                drawMesh = true;
+                AddNewMeshPoints(hit.point,ray.GetPoint(m_lineOfSight.m_maxDistance));
             }
             else
             {
-                m_raycastHiPositions[i] = ray.GetPoint(m_maxDistance);
+                m_isCurrentlyDrawingMesh = true;
+                //CreateNewMeshInfo();
             }
+            
+        }
+
+        if (drawMesh)
+        {
+            DrawMesh();
         }
         
-        /*
-        for (var i = 0; i < m_numberOfRaycast; i++)
+        for (var i = 0; i < m_raycastHiPositions.Count; i++)
         {
             var firstRaycastHit = m_raycastHiPositions[i];
             float distance;
-            distance = Vector3.Distance(transform.position,firstRaycastHit);
-            var rayCastDirection = Quaternion.Euler(0, (-m_amplitudeOfSightInDegrees*.5f)+(i*step), 0)*transform.forward;
-            Debug.DrawRay(transform.position,rayCastDirection*distance);
+            distance = Vector3.Distance(m_endOfLineOfSightPositions[i],firstRaycastHit);
+            var rayCastDirection = (m_endOfLineOfSightPositions[i] - firstRaycastHit).normalized;
+            Debug.DrawRay(firstRaycastHit,rayCastDirection*distance);
         }
-        */
+        
         /*
+        
+                var collisionWorld = World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<BuildPhysicsWorld>()
+        .PhysicsWorld.CollisionWorld;
         var inputs = new NativeArray<RaycastInput>(m_numberOfRaycast,Allocator.TempJob);
         var result = new NativeArray<RaycastHit>(m_numberOfRaycast,Allocator.TempJob);
         
@@ -91,9 +116,11 @@ public class LineOfSight : MonoBehaviour
 
         }
 
+        NativeArray<float3> raycastPositions = new NativeArray<float3>(m_numberOfRaycast,Allocator.TempJob);
         
         DotsRaycastManager.MultipleRaycast(collisionWorld,inputs,ref result);
-        /*
+        DotsRaycastManager.GetRaycastDistances(collisionWorld,inputs,ref raycastPositions);
+        
         
         for (var i = 0; i < m_numberOfRaycast; i++)
         {
@@ -110,6 +137,7 @@ public class LineOfSight : MonoBehaviour
             var rayCastDirection = Quaternion.Euler(0, (-m_amplitudeOfSightInDegrees*.5f)+(i*step), 0)*transform.forward;
             Debug.DrawRay(transform.position,rayCastDirection*distance);
         }
+        
         inputs.Dispose();
         result.Dispose();
         
@@ -159,11 +187,71 @@ public class LineOfSight : MonoBehaviour
         Debug.Log(workTime+" ms");
     }
 
+    private void CreateNewMeshInfo() 
+    {
+        //throw new NotImplementedException();
+    }
+
+    private void AddNewMeshPoints(Vector3 _hitPoint, Vector3 _getPoint)
+    {
+        //throw new NotImplementedException();
+        
+    }
+
+    private void CloseMeshInfo()
+    {
+        //throw new NotImplementedException();
+        
+    }
+
+    private void DrawMesh()
+    {
+        Mesh mesh = new Mesh();
+        var nbOfTriangles = (m_raycastHiPositions.Count - 1)*2;
+        var nbOfVertices = nbOfTriangles * 3;
+        var vertices = new Vector3[nbOfVertices];
+
+        var relativeRotation = Quaternion.Inverse(Quaternion.LookRotation(transform.forward));
+        for (var i = 0; i < m_raycastHiPositions.Count-2; i ++)
+        {
+            vertices[i*6] = relativeRotation*(m_raycastHiPositions[i]-transform.position);
+            vertices[i*6+1] = relativeRotation*(m_endOfLineOfSightPositions[i]-transform.position);
+            vertices[i*6+2] = relativeRotation*(m_raycastHiPositions[i+1]-transform.position);
+            vertices[i*6+3] = relativeRotation*(m_endOfLineOfSightPositions[i]-transform.position);
+            vertices[i*6+4] = relativeRotation*(m_endOfLineOfSightPositions[i+1]-transform.position);
+            vertices[i*6+5] = relativeRotation*(m_raycastHiPositions[i+1]-transform.position);
+            
+            
+        }
+
+
+        var triangles = new int[nbOfTriangles * 3];
+        
+        for (var i = 0; i < triangles.Length; i ++ )
+        {
+            triangles[i] = i;
+        }
+        
+        var uvs = new Vector2[nbOfVertices];
+        
+        for (var i = 0; i < uvs.Length; i ++)
+        {
+            uvs[i] = new Vector2(0,0);
+        }
+
+        mesh.vertices = vertices;
+        mesh.triangles = triangles;
+        mesh.uv = uvs;
+        
+        //mesh.normals = normals;
+        m_meshFilter.mesh = mesh;
+    }
+
     // Update is called once per frame
-    void Update()
+    void LateUpdate()
     {
         //if (!Input.GetMouseButtonDown(0)) return;
-        DrawMesh();
+        RayCast();
     }
 
     private void OnDrawGizmos()

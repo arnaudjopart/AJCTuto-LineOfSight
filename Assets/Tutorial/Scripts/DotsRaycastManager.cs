@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
+using Unity.Mathematics;
 using Unity.Physics;
 
 
@@ -60,5 +61,13 @@ public class DotsRaycastManager
         var handle = ScheduleBatchRaycast(_collisionWorld, _inputs, _results);
         handle.Complete();
     }
-    
+
+    public static void GetRaycastDistances(CollisionWorld _collisionWorld, NativeArray<RaycastInput> _inputs, 
+    ref NativeArray<float3> _raycastPositions)
+    {
+        var result = new NativeArray<RaycastHit>(1,Allocator.TempJob);
+        var handle = ScheduleBatchRaycast(_collisionWorld, _inputs, result);
+        handle.Complete();
+        
+    }
 }
