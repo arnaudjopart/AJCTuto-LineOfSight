@@ -54,9 +54,7 @@ public class LineOfSight : MonoBehaviour
        var currentMeshData = new MaskMeshData(_type);
         
         var step = m_lineOfSight.m_amplitudeOfSightInDegrees / (m_lineOfSight.m_numberOfRaycast-1);
-        
-        double startTimer = Time.realtimeSinceStartup;
-        
+
         for (var i = 0; i < m_lineOfSight.m_numberOfRaycast; i++)
         {
             var angle = (-m_lineOfSight.m_amplitudeOfSightInDegrees*.5f)+(i * step);
@@ -109,112 +107,8 @@ public class LineOfSight : MonoBehaviour
             m_previousRaycastData = currentRayCastResult;
         }
         
-        
-        /*for (var i = 0; i < m_raycastHiPositions.Count; i++)
-        {
-            var firstRaycastHit = m_raycastHiPositions[i];
-            var distance = Vector3.Distance(m_endOfLineOfSightPositions[i],firstRaycastHit);
-            var rayCastDirection = (m_endOfLineOfSightPositions[i] - firstRaycastHit).normalized;
-            Debug.DrawRay(firstRaycastHit,rayCastDirection*distance);
-        }*/
-        
-        /*
-        
-                var collisionWorld = World.DefaultGameObjectInjectionWorld.GetOrCreateSystem<BuildPhysicsWorld>()
-        .PhysicsWorld.CollisionWorld;
-        var inputs = new NativeArray<RaycastInput>(m_numberOfRaycast,Allocator.TempJob);
-        var result = new NativeArray<RaycastHit>(m_numberOfRaycast,Allocator.TempJob);
-        
-        for (var i = 0; i < m_numberOfRaycast; i++)
-        {
-            var rayCastDirection = Quaternion.Euler(0, (-m_amplitudeOfSightInDegrees*.5f)+(i*step), 0)*transform.forward;
-            var raycastInput = new RaycastInput
-            {
-                Start = transform.position,
-                End = transform.position+rayCastDirection*m_maxDistance,
-                Filter = new CollisionFilter
-                {
-                    BelongsTo = ~0u,
-                    CollidesWith = ~0u, // all 1s, so all layers, collide with everything
-                    GroupIndex = 0
-                }
-            };
-
-            inputs[i] = raycastInput;
-
-        }
-
-        NativeArray<float3> raycastPositions = new NativeArray<float3>(m_numberOfRaycast,Allocator.TempJob);
-        
-        DotsRaycastManager.MultipleRaycast(collisionWorld,inputs,ref result);
-        DotsRaycastManager.GetRaycastDistances(collisionWorld,inputs,ref raycastPositions);
-        
-        
-        for (var i = 0; i < m_numberOfRaycast; i++)
-        {
-            var firstRaycastHit = result[i];
-            float distance;
-            if (m_entityManager.Exists(firstRaycastHit.Entity))
-            {
-                distance = Vector3.Distance(transform.position,firstRaycastHit.Position);
-            }
-            else
-            {
-                distance = m_maxDistance; 
-            }
-            var rayCastDirection = Quaternion.Euler(0, (-m_amplitudeOfSightInDegrees*.5f)+(i*step), 0)*transform.forward;
-            Debug.DrawRay(transform.position,rayCastDirection*distance);
-        }
-        
-        inputs.Dispose();
-        result.Dispose();
-        
-        /*
-        Mesh mesh = new Mesh();
-        var nbOfTriangles = m_numberOfRaycast - 1;
-        var nbOfVertices = nbOfTriangles * 3;
-        var vertices = new Vector3[nbOfVertices];
-        for (var i = 0; i < m_raycastHiPositions.Length-1; i ++)
-        {
-            vertices[i*3] = Vector3.zero;
-            vertices[i * 3 + 1] = Quaternion.Inverse(Quaternion.LookRotation(transform.forward))*(m_raycastHiPositions[i]-transform.position);
-            vertices[i*3+2] = Quaternion.Inverse(Quaternion.LookRotation(transform.forward))*(m_raycastHiPositions[i+1]-transform.position);
-        }
-
-
-        var triangles = new int[nbOfTriangles * 3];
-        for (var i = 0; i < triangles.Length; i += 3)
-        {
-            triangles[i] = 0;
-            triangles[i+ 1] = i + 1;
-            triangles[i+ 2] = i + 2;
-        }
-        
-        var uvs = new Vector2[nbOfVertices];
-        
-        for (var i = 0; i < triangles.Length; i += 3)
-        {
-            uvs[i] = new Vector2(0,0);
-        }
-        
-        
-        /*var normals = new Vector3[3];
-        uvs[0] = new Vector3(0,1);
-        uvs[1] = new Vector3(0,1);
-        uvs[2] = new Vector3 (0,1);
-
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-        mesh.uv = uvs;
-        
-        //mesh.normals = normals;
-        m_meshFilter.mesh = mesh;
-        */
-        var endTimer = Time.realtimeSinceStartup;
-        var workTime = (endTimer - startTimer)*1000;
-        
         return meshDataCollection;
-        //Debug.Log(workTime+" ms");
+
     }
 
     private void FindEdge()
@@ -319,7 +213,6 @@ public class LineOfSight : MonoBehaviour
     // Update is called once per frame
     void LateUpdate()
     {
-        //if (!Input.GetMouseButtonDown(0)) return;
         var semiCoverMeshDataCollection = RayCast(MaskMeshData.TYPE.SEMI);
         var fullCoverMeshDataCollection = RayCast(MaskMeshData.TYPE.FULL);
 
